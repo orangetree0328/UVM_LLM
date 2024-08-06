@@ -1,84 +1,54 @@
-`ifndef UE_AGENT_SV
-`define UE_AGENT_SV
+`ifndef UE_BASE_TEST_SV
+`define UE_BASE_TEST_SV
 
-//---------------------------------------
+//--------------------------------------------------------------------------------------------------------
 // svh
-//---------------------------------------
+//--------------------------------------------------------------------------------------------------------
 
-class ue_agent extends uvm_agent;
+class ue_base_test extends  uvm_test;
 
-  uvm_active_passive_enum is_active;
-  
-  ue_driver drv;
-  ue_sequencer sqr;
-  ue_monitor mon;
+	ue_env env;
 
-  ue_config cfg;
-  virtual ue_interface vif;
+	`uvm_component_utils(ue_base_test)
+	extern function new(string name="ue_base_test",uvm_component parent = null);
+	extern function void build();
+	extern function void report();
+endclass 
 
-  `uvm_component_utils(ue_agent)
 
-  extern function new(string name = "ue_agent",uvm_component parent = null);
-  extern function void build();
-  extern function void connect();
-  extern function void report();
-endclass
-
-//---------------------------------------
+//--------------------------------------------------------------------------------------------------------
 // sv
-//---------------------------------------
-function ue_agent::new(string name = "ue_agent" ,uvm_component parent = null);
+//--------------------------------------------------------------------------------------------------------
+
+function ue_base_test::new(string name ="ue_base_test",uvm_component parent = null);
   super.new(name, parent);
-  `uvm_info(get_type_name(), $sformatf("created, is_active: %s" ,is_active), UVM_LOW)
+  `uvm_info(get_type_name(), $sformatf("created"), UVM_LOW)
 endfunction : new
 
-function void ue_agent::build();
-  	super.build();
-    
+function void ue_base_test::build();
+	super.build();
 
-    if(!uvm_config_db#(ue_config)::get(this,"","cfg", cfg)) begin
-     cfg = ue_config::type_id::create("cfg");
-    end
+	env = ue_env::type_id::create("env",this);
 
-    `uvm_info(get_type_name(), $sformatf("start to build, is_active: %s",is_active), UVM_LOW)
+	`uvm_info(get_type_name(), "built", UVM_LOW)
+endfunction
 
 
 
-  	if(!uvm_config_db#(virtual ue_interface)::get(this,"","vif", vif)) begin
-  	  `uvm_fatal("GETVIF","cannot get vif handle from config DB")
-  	end
-    vif.start_report=0;
+function void ue_base_test::report();
+	uvm_report_server server;
+	int err_num;
+	super.report();
+
+	server = get_report_server(); 
+	err_num = server.get_severity_count(UVM_ERROR);
+
+	if(err_num != 0) 
+		`uvm_info(get_type_name(), $sformatf("err_num:%0d TEST CASE FAILED",err_num), UVM_LOW)	
+	else 
+		`uvm_info(get_type_name(), $sformatf("TEST CASE PASSED"), UVM_LOW)	
+
+endfunction
 
 
-  	mon = ue_monitor::type_id::create("mon",this);
-  	mon.vif=vif;
-
-  	if(is_active==UVM_ACTIVE) begin 
-  		sqr = ue_sequencer::type_id::create("sqr",this);
-  		drv = ue_driver::type_id::create("drv",this);  		
-  		drv.vif = vif;
-      mon.monitor_input=1'b1;
-  	end
-    else
-      mon.monitor_input=1'b0;
-
-
-    `uvm_info(get_type_name(), "built", UVM_LOW)
-endfunction:build
-
-function void ue_agent::connect();
-	if(is_active==UVM_ACTIVE) begin 
-		drv.seq_item_port.connect(sqr.seq_item_export);
-	end
-  `uvm_info(get_type_name(), "connected", UVM_LOW)
-endfunction:connect
-
-
-
-function void ue_agent::report();
-  super.report();
-  vif.start_report=1;
-  
-endfunction:report
-
-`endif // UE_AGENT_SV
+`endif // UE_BASE_TEST_SV
